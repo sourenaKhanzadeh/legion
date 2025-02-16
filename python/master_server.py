@@ -1,3 +1,4 @@
+import json
 from fastapi import FastAPI, HTTPException
 import httpx
 from pydantic import BaseModel
@@ -36,9 +37,9 @@ async def get_nvidia_smi():
     gpus = []
     for worker in GPU_WORKERS:
         async with httpx.AsyncClient() as client:
-            response = await client.get(worker + "/nvidia-smi")
+            response = await client.get(worker.replace("compute", "nvidia-smi"))
             if response.status_code == 200:
                 gpus.append(response.json())
-    return gpus if gpus else {"error": "No available GPU workers"}
+    return json.dumps(gpus) if gpus else json.dumps({"error": "No available GPU workers"})
 
 # Run with: uvicorn master_server:app --host 0.0.0.0 --port 8000

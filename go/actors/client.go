@@ -1,6 +1,7 @@
 package actors
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -24,7 +25,7 @@ func Compute(data []float32, operation string) ([]float32, error) {
 	// Prepare the request payload
 	requestData := ComputeRequest{
 		Data:      []float32{1, 2, 3, 4},
-		Operation: "square",
+		Operation: "cube",
 	}
 
 	// Create a new HTTP client
@@ -52,4 +53,37 @@ func Compute(data []float32, operation string) ([]float32, error) {
 	fmt.Println("Computed Result:", response.Result)
 
 	return response.Result, nil
+}
+
+func GetGPUs() ([]map[string]string, error) {
+	// Define the master server URL
+	serverURL := "http://localhost:8001/nvidia-smi"
+
+	// Create a new HTTP client
+	client := resty.New()
+
+	// Get the raw string response first
+	var rawResponse string
+	resp, err := client.R().
+		SetResult(&rawResponse).
+		Get(serverURL)
+
+	if err != nil {
+		log.Fatalf("Request failed: %v", err)
+	}
+
+	// Parse the string into our desired format
+	var gpus []map[string]string
+	err = json.Unmarshal([]byte(rawResponse), &gpus)
+	if err != nil {
+		// Print the raw response to help debug
+		fmt.Printf("Raw response: %s\n", rawResponse)
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	// Print the result
+	fmt.Println("Response:", resp)
+	fmt.Println("GPUs:", gpus)
+
+	return gpus, nil
 }
