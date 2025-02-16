@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 import torch
 
+import gpu_compute
+import mat_mult
 
-# Load the compiled CUDA library
-gpu_lib = torch.ops.load_library("gpu_compute.dll")
 
 
 from pydantic import BaseModel
@@ -27,7 +27,7 @@ async def compute(request: ComputeRequest):
         tensor = torch.tensor(request.data, dtype=torch.float32).cuda()
 
         if request.operation == "square":
-            result = gpu_lib.square_tensor(tensor)  # Call C++ CUDA function
+            result = gpu_compute.square_tensor(tensor)  # Call C++ CUDA function
         else:
             return {"error": "Unsupported operation"}
 
@@ -45,7 +45,7 @@ async def matrix_multiplication(request: MatMulRequest):
         B_tensor = torch.tensor(request.B, dtype=torch.float32)
 
         # Perform multiplication on the selected GPU
-        result = gpu_lib.matrixMultiply(A_tensor, B_tensor, request.device_id)
+        result = mat_mult.matrixMultiply(A_tensor, B_tensor, request.device_id)
 
         return {"gpu": HOSTNAME, "device": request.device_id, "result": result.cpu().tolist()}
 
