@@ -101,8 +101,29 @@ async def get_nvidia_smi():
 @app.post("/execute_script")
 async def execute_script(request: ExecuteScriptRequest):
     script_path = request.script_path
+
+    with open(script_path, "rb") as f:
+        script_bytes = f.read()
+
+    tasks = []
     async with httpx.AsyncClient() as client:
-        response = await client.post(GPU_WORKERS[0].replace("compute", "execute_script"), json={"script_path": script_path})
-    return response.json()
+        for worker in GPU_WORKERS:
+            tasks.append(client.post(worker.replace("compute", "execute_script"), content=script_bytes))
+
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for worker, response in zip(GPU_WORKERS, responses):
+        if isinstance(response, Exception):
+            raise HTTPException(status_code=500, detail=f"GPU Worker Error: {str(response)}")
+        try:
+            res = response.json()
+            if "output" in res:
+                return res["output"]
+            elif "error" in res:
+                raise HTTPException(status_code=500, detail=res["error"])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to parse GPU response: {str(e)}")
+
+    raise HTTPException(status_code=500, detail="No valid results from GPU workers")
 
 # Run with: uvicorn master_server:app --host 0.0.0.0 --port 8000
