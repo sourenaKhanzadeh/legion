@@ -19,7 +19,6 @@ class ComputeRequest(BaseModel):
 class MatMulRequest(BaseModel):
     A: list  # Matrix A
     B: list  # Matrix B
-    device_id: int  # The GPU to use
 
 @app.post("/compute")
 async def compute(request: ComputeRequest):
@@ -45,9 +44,9 @@ async def matrix_multiplication(request: MatMulRequest):
         B_tensor = torch.tensor(request.B, dtype=torch.float32)
 
         # Perform multiplication on the selected GPU
-        result = mat_mult.matrix_multiply(A_tensor, B_tensor, request.device_id)
+        result = mat_mult.matrix_multiply(A_tensor, B_tensor)
 
-        return {"gpu": HOSTNAME, "device": request.device_id, "result": result.cpu().tolist()}
+        return {"gpu": HOSTNAME, "result": result.cpu().tolist()}
 
     except Exception as e:
         return {"error": str(e)}
