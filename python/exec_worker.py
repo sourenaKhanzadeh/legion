@@ -1,9 +1,9 @@
-from fastapi import FastAPI
+from fastapi import APIRouter
 import subprocess
 
-app = FastAPI()
+router = APIRouter()
 
-@app.post("/execute_script")
+@router.post("/execute_script")
 async def execute_script(script_path: str):
     try:
         result = subprocess.run(["python3", script_path], capture_output=True, text=True, check=True)

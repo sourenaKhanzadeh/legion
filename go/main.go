@@ -24,8 +24,8 @@ func main() {
 
 	fmt.Println("MATMUL!")
 	// make two nxn matrices Randomly
-	A := GenerateRandomMatrix(50, 50)
-	B := GenerateRandomMatrix(50, 50)
+	A := GenerateRandomMatrix(2, 2)
+	B := GenerateRandomMatrix(2, 2)
 	matResult, err := actors.MatMul(A, B)
 	if err != nil {
 		log.Fatalf("Error: %v", err)

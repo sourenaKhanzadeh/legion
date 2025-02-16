@@ -4,8 +4,7 @@ import torch
 import gpu_compute
 import mat_mult
 
-import httpx
-
+from exec_worker import router  as exec_router
 from pydantic import BaseModel
 import socket
 
@@ -53,11 +52,17 @@ async def matrix_multiplication(request: MatMulRequest):
         return {"error": str(e)}
 
 
+
+
+
 @app.get("/nvidia-smi")
 async def get_nvidia_smi():
     # get device name
     device_name = torch.cuda.get_device_name(0)
     return {"nvidia-smi": device_name}
+
+
+app.include_router(exec_router)
 
 # Run the worker
 # Start using: uvicorn gpu_worker:app --host 0.0.0.0 --port 8001
