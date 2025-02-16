@@ -19,13 +19,13 @@ type ComputeResponse struct {
 }
 
 func Compute(data []float32, operation string) ([]float32, error) {
-	// Define the GPU server URL
-	serverURL := "http://localhost:8001/compute"
+	// Define the Master Server URL (not a worker)
+	serverURL := "http://localhost:8001/compute" // Fix: Use Master Server
 
 	// Prepare the request payload
 	requestData := ComputeRequest{
-		Data:      []float32{1, 2, 3, 4},
-		Operation: "cube",
+		Data:      data,      // Fix: Use function parameters
+		Operation: operation, // Fix: Use function parameters
 	}
 
 	// Create a new HTTP client
@@ -56,8 +56,8 @@ func Compute(data []float32, operation string) ([]float32, error) {
 }
 
 func GetGPUs() ([]map[string]string, error) {
-	// Define the master server URL
-	serverURL := "http://localhost:8001/nvidia-smi"
+	// Define the Master Server URL for GPU details
+	serverURL := "http://localhost:8001/nvidia-smi" // Fix: Use Master Server
 
 	// Create a new HTTP client
 	client := resty.New()
@@ -86,4 +86,51 @@ func GetGPUs() ([]map[string]string, error) {
 	fmt.Println("GPUs:", gpus)
 
 	return gpus, nil
+}
+
+type MatMulRequest struct {
+	A [][]float32 `json:"A"`
+	B [][]float32 `json:"B"`
+}
+
+type MatMulResponse struct {
+	Result [][]float32 `json:"result"`
+	Error  string      `json:"error"`
+}
+
+func MatMul(A [][]float32, B [][]float32) ([][]float32, error) {
+	// Master Server URL
+	serverURL := "http://localhost:8000/matmul"
+
+	// Prepare the request payload
+	requestData := MatMulRequest{
+		A: A,
+		B: B,
+	}
+
+	// Create a new HTTP client
+	client := resty.New()
+
+	// Send the request
+	var response MatMulResponse
+	resp, err := client.R().
+		SetBody(requestData).
+		SetResult(&response).
+		Post(serverURL)
+
+	// Handle errors
+	if err != nil {
+		log.Fatalf("Request failed: %v", err)
+	}
+
+	// Check for server-side errors
+	if response.Error != "" {
+		log.Fatalf("Server error: %s", response.Error)
+	}
+
+	// Print the result
+	fmt.Println("Response:", resp)
+	fmt.Println("Computed Matrix:", response.Result)
+
+	return response.Result, nil
 }

@@ -3,6 +3,8 @@ from fastapi import FastAPI, HTTPException
 import httpx
 from pydantic import BaseModel
 import random
+import torch 
+import numpy as np
 
 app = FastAPI()
 
@@ -16,6 +18,11 @@ class ComputeRequest(BaseModel):
     data: list
     operation: str
 
+class MatMulRequest(BaseModel):
+    A: list
+    B: list
+
+
 @app.post("/compute")
 async def distribute_compute(request: ComputeRequest):
     if not GPU_WORKERS:
@@ -28,6 +35,31 @@ async def distribute_compute(request: ComputeRequest):
         response = await client.post(selected_worker, json=request.dict())
     
     return response.json()
+
+@app.post("/matmul")
+async def distribute_matmul(request: MatMulRequest):
+    A = torch.tensor(request.A, dtype=torch.float32)
+    B = torch.tensor(request.B, dtype=torch.float32)
+
+    # Split the matrix into chunks
+    num_gpus = len(GPU_WORKERS)
+    chunk_size = A.size(0) // num_gpus
+    sub_matrices = torch.chunk(A, num_gpus, dim=0)
+
+    results = []
+    async with httpx.AsyncClient() as client:
+        for i, sub_matrix in enumerate(sub_matrices):
+            payload = {
+                "A": sub_matrix.tolist(),
+                "B": B.tolist(),
+                "device_id": i  # Assign each chunk to a different GPU
+            }
+            response = await client.post(GPU_WORKERS[i], json=payload)
+            results.append(response.json()["result"])
+
+    # Concatenate results
+    final_result = np.vstack(results).tolist()
+    return {"result": final_result}
 
 
 @app.get("/nvidia-smi")
