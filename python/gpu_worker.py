@@ -43,9 +43,6 @@ async def matrix_multiplication(request: MatMulRequest):
         A_tensor = torch.tensor(request.A, dtype=torch.float32)
         B_tensor = torch.tensor(request.B, dtype=torch.float32)
 
-        # send message to master server
-        async with httpx.AsyncClient() as client:
-            await client.post("http://localhost:8001/matmul", json={"GPU": torch.cuda.get_device_name(0)})
 
         # Perform multiplication on the selected GPU
         result = mat_mult.matrix_multiply(A_tensor, B_tensor)
