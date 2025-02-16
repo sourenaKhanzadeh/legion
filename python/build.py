@@ -3,13 +3,16 @@ import subprocess
 import sys
 import torch
 import pathlib
+import dotenv
+
+dotenv.load_dotenv()
 
 # Detect PyTorch paths
 TORCH_INCLUDE = torch.utils.cpp_extension.include_paths()
 TORCH_LIB = torch.utils.cpp_extension.library_paths()[0]
 
 # Detect CUDA paths
-CUDA_PATH = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6"
+CUDA_PATH = os.getenv("CUDA_PATH")
 CUDA_INCLUDE = f"{CUDA_PATH}/include"
 CUDA_LIB = f"{CUDA_PATH}/lib/x64"
 CUDA_BIN = f"{CUDA_PATH}/bin"
