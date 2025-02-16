@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, File, UploadFile
 import subprocess
 import tempfile
 import os
@@ -32,13 +32,13 @@ async def execute_script(script_bytes: bytes = Body(...)):
 
 
 @router.post("/execute_project")
-async def execute_project(project_zip: bytes = Body(...)):
+async def execute_project(project_zip: UploadFile = File(...)):
     try:
         # Create a temporary directory for the project
         with tempfile.TemporaryDirectory() as temp_dir:
             # store the zip file in the temp directory
             with open(os.path.join(temp_dir, "project.zip"), "wb") as f:
-                f.write(project_zip)
+                f.write(await project_zip.read())
             # unzip the project.zip file
             with zipfile.ZipFile(os.path.join(temp_dir, "project.zip"), 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
@@ -55,7 +55,7 @@ async def execute_project(project_zip: bytes = Body(...)):
                 return {"output": "", "error": "main not found in main.yaml"}
             
             # Execute the project
-            result = subprocess.run([sys.executable, os.path.join(temp_dir, main_root)], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, os.path.join(temp_dir, main_root)], cwd=temp_dir, capture_output=True, text=True)
 
             # Read the execution results
             output = result.stdout
