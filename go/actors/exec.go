@@ -10,9 +10,10 @@ type ExecRequest struct {
 
 type ExecResponse struct {
 	Output string `json:"output"`
+	Error  string `json:"error"`
 }
 
-func Exec(scriptPath string) (string, error) {
+func Exec(scriptPath string) ([]string, error) {
 	serverURL := "http://localhost:8001/execute_script"
 
 	requestData := ExecRequest{
@@ -21,15 +22,20 @@ func Exec(scriptPath string) (string, error) {
 
 	client := resty.New()
 
-	var response ExecResponse
+	var response []ExecResponse
 	_, err := client.R().
 		SetBody(requestData).
 		SetResult(&response).
 		Post(serverURL)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return response.Output, nil
+	outputs := make([]string, len(response))
+	for i, res := range response {
+		outputs[i] = res.Output
+	}
+
+	return outputs, nil
 }
