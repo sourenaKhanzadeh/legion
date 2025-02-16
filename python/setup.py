@@ -3,7 +3,7 @@ from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 import os
 
 # Define the path to the C++ CUDA files
-compute_reg_path = os.path.abspath("../C++/cuda")
+compute_reg_path = os.path.abspath("../c++/cuda")
 
 setup(
     name="gpu_compute",

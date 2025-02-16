@@ -10,7 +10,7 @@ app = FastAPI()
 
 # List of available GPU workers (Modify with actual IPs)
 GPU_WORKERS = [
-    "http://192.168.2.48:8000/compute",
+    # "http://192.168.2.48:8000/compute",
     "http://192.168.2.59:8002/compute",
 ]
 
@@ -21,6 +21,7 @@ class ComputeRequest(BaseModel):
 class MatMulRequest(BaseModel):
     A: list
     B: list
+    device_id: int
 
 
 @app.post("/compute")
@@ -52,11 +53,16 @@ async def distribute_matmul(request: MatMulRequest):
             payload = {
                 "A": sub_matrix.tolist(),
                 "B": B.tolist(),
-                "device_id": i  # Assign each chunk to a different GPU
+                "device_id": request.device_id  # Assign each chunk to a different GPU
             }
-            response = await client.post(GPU_WORKERS[i], json=payload)
-            results.append(response.json()["result"])
-
+            response = await client.post(GPU_WORKERS[i].replace("compute", "matmul"), json=payload)
+            res = response.json()
+            if res.get("result", False):
+                results.append(res["result"])
+            if res.get("error", False):
+                raise HTTPException(status_code=500, detail=res.get("error", "Unknown error"))
+    if not results:
+        raise HTTPException(status_code=500, detail="No results from GPU workers")
     # Concatenate results
     final_result = np.vstack(results).tolist()
     return {"result": final_result}

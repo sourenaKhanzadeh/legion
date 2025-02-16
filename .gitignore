@@ -11,3 +11,5 @@ build/
 Legion-Go
 
 .env
+
+*.egg-info

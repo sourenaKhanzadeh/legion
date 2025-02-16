@@ -89,8 +89,9 @@ func GetGPUs() ([]map[string]string, error) {
 }
 
 type MatMulRequest struct {
-	A [][]float32 `json:"A"`
-	B [][]float32 `json:"B"`
+	A        [][]float32 `json:"A"`
+	B        [][]float32 `json:"B"`
+	DeviceID int         `json:"device_id"`
 }
 
 type MatMulResponse struct {
@@ -98,14 +99,15 @@ type MatMulResponse struct {
 	Error  string      `json:"error"`
 }
 
-func MatMul(A [][]float32, B [][]float32) ([][]float32, error) {
+func MatMul(A [][]float32, B [][]float32, deviceID int) ([][]float32, error) {
 	// Master Server URL
-	serverURL := "http://localhost:8000/matmul"
+	serverURL := "http://localhost:8001/matmul"
 
 	// Prepare the request payload
 	requestData := MatMulRequest{
-		A: A,
-		B: B,
+		A:        A,
+		B:        B,
+		DeviceID: deviceID,
 	}
 
 	// Create a new HTTP client

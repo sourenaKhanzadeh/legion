@@ -20,4 +20,11 @@ func main() {
 		log.Fatalf("Error: %v", err)
 	}
 	fmt.Println(result)
+
+	fmt.Println("MATMUL!")
+	matResult, err := actors.MatMul([][]float32{{1, 2}, {3, 4}}, [][]float32{{5, 6}, {7, 8}}, 2)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+	fmt.Println(matResult)
 }
