@@ -60,7 +60,6 @@ async def distribute_matmul(request: MatMulRequest):
 
     # Collect results
     results = []
-    gpus = {}
     for response in responses:
         if isinstance(response, Exception):
             raise HTTPException(status_code=500, detail=f"GPU Worker Error: {str(response)}")
@@ -68,7 +67,6 @@ async def distribute_matmul(request: MatMulRequest):
             res = response.json()
             if "result" in res:
                 results.append(res["result"])
-                gpus[len(results) - 1] = res["GPU"]
             elif "error" in res:
                 raise HTTPException(status_code=500, detail=res["error"])
         except Exception as e:
@@ -80,7 +78,8 @@ async def distribute_matmul(request: MatMulRequest):
     
     final_result = np.vstack(results).tolist()
 
-    return {"result": final_result, **gpus}
+    # Return only the result, not the tasks
+    return {"result": final_result, "server_tasks": server_tasks}
 
 @app.get("/nvidia-smi")
 async def get_nvidia_smi():

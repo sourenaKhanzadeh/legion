@@ -4,6 +4,7 @@ import (
 	"Legion-Go/actors"
 	"fmt"
 	"log"
+	"math/rand/v2"
 )
 
 func main() {
@@ -22,9 +23,24 @@ func main() {
 	fmt.Println(result)
 
 	fmt.Println("MATMUL!")
-	matResult, err := actors.MatMul([][]float32{{1, 2}, {3, 4}}, [][]float32{{5, 6}, {7, 8}})
+	// make two nxn matrices Randomly
+	A := GenerateRandomMatrix(50, 50)
+	B := GenerateRandomMatrix(50, 50)
+	matResult, err := actors.MatMul(A, B)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 	fmt.Println(matResult)
+}
+
+// GenerateRandomMatrix creates an N x P matrix with random float values
+func GenerateRandomMatrix(rows, cols int) [][]float32 {
+	matrix := make([][]float32, rows)
+	for i := range matrix {
+		matrix[i] = make([]float32, cols)
+		for j := range matrix[i] {
+			matrix[i][j] = rand.Float32() * 10 // Random values between 0 and 10
+		}
+	}
+	return matrix
 }
