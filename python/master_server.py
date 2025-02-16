@@ -104,7 +104,6 @@ async def execute_script(request: ExecuteScriptRequest):
 
     with open(script_path, "rb") as f:
         script_bytes = f.read()
-
     tasks = []
     async with httpx.AsyncClient() as client:
         for worker in GPU_WORKERS:
