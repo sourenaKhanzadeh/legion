@@ -31,6 +31,13 @@ func main() {
 		log.Fatalf("Error: %v", err)
 	}
 	fmt.Println(matResult)
+
+	fmt.Println("EXEC!")
+	execResult, err := actors.Exec("../python/scripts/exec_test.py")
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+	fmt.Println(execResult)
 }
 
 // GenerateRandomMatrix creates an N x P matrix with random float values

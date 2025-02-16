@@ -22,6 +22,9 @@ class MatMulRequest(BaseModel):
     A: list
     B: list
 
+class ExecuteScriptRequest(BaseModel):
+    script_path: str
+
 
 @app.post("/compute")
 async def distribute_compute(request: ComputeRequest):
@@ -79,7 +82,7 @@ async def distribute_matmul(request: MatMulRequest):
     final_result = np.vstack(results).tolist()
 
     # Return only the result, not the tasks
-    return {"result": final_result, "server_tasks": server_tasks}
+    return {"result": final_result}
 
 @app.get("/nvidia-smi")
 async def get_nvidia_smi():
@@ -92,5 +95,14 @@ async def get_nvidia_smi():
             if response.status_code == 200:
                 gpus.append(response.json())
     return json.dumps(gpus) if gpus else json.dumps({"error": "No available GPU workers"})
+
+
+
+@app.post("/execute_script")
+async def execute_script(request: ExecuteScriptRequest):
+    script_path = request.script_path
+    async with httpx.AsyncClient() as client:
+        response = await client.post(GPU_WORKERS[0].replace("compute", "execute_script"), json={"script_path": script_path})
+    return response.json()
 
 # Run with: uvicorn master_server:app --host 0.0.0.0 --port 8000
