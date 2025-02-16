@@ -7,7 +7,7 @@ app = FastAPI()
 
 # List of available GPU workers (Modify with actual IPs)
 GPU_WORKERS = [
-    "http://192.168.1.101:8001/compute",
+    "http://192.168.2.48:8000/compute",
 ]
 
 class ComputeRequest(BaseModel):

@@ -19,7 +19,7 @@ type ComputeResponse struct {
 
 func Compute(data []float32, operation string) ([]float32, error) {
 	// Define the GPU server URL
-	serverURL := "http://localhost:8000/compute"
+	serverURL := "http://localhost:8001/compute"
 
 	// Prepare the request payload
 	requestData := ComputeRequest{
@@ -32,7 +32,7 @@ func Compute(data []float32, operation string) ([]float32, error) {
 
 	// Send the request
 	var response ComputeResponse
-	_, err := client.R().
+	resp, err := client.R().
 		SetBody(requestData).
 		SetResult(&response).
 		Post(serverURL)
@@ -48,6 +48,7 @@ func Compute(data []float32, operation string) ([]float32, error) {
 	}
 
 	// Print the result
+	fmt.Println("Response:", resp)
 	fmt.Println("Computed Result:", response.Result)
 
 	return response.Result, nil
