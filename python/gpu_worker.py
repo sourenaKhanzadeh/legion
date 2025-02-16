@@ -1,14 +1,12 @@
 from fastapi import FastAPI
 import torch
+import gpu_compute  # Import compiled CUDA extension
 from pydantic import BaseModel
 import socket
 
 app = FastAPI()
-
-# Get the hostname (for identification)
 HOSTNAME = socket.gethostname()
 
-# Define request model
 class ComputeRequest(BaseModel):
     data: list
     operation: str
@@ -17,11 +15,9 @@ class ComputeRequest(BaseModel):
 async def compute(request: ComputeRequest):
     try:
         tensor = torch.tensor(request.data, dtype=torch.float32).cuda()
-        
+
         if request.operation == "square":
-            result = tensor ** 2
-        elif request.operation == "cube":
-            result = tensor ** 3
+            result = gpu_compute.square_tensor(tensor)  # Call C++ CUDA function
         else:
             return {"error": "Unsupported operation"}
 
@@ -29,6 +25,7 @@ async def compute(request: ComputeRequest):
 
     except Exception as e:
         return {"error": str(e)}
+
 
 
 @app.get("/nvidia-smi")

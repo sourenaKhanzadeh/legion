@@ -1,37 +1,31 @@
 #include <torch/extension.h>
-#include <vector>
+#include <cuda_runtime.h>
 
-// CUDA kernel function to square elements
-__global__ void squareKernel(float* d_data, int size) {
+// CUDA kernel for squaring elements
+__global__ void squareKernel(float* data, int size) {
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
     if (idx < size) {
-        d_data[idx] = d_data[idx] * d_data[idx];
+        data[idx] = data[idx] * data[idx];
     }
 }
 
-// CUDA function to execute the kernel
+// Function to run CUDA kernel
 torch::Tensor squareTensor(torch::Tensor input) {
-    // Ensure input is on CUDA
-    input = input.to(torch::kCUDA);
-    
-    // Get raw pointer to data
-    float* d_data = input.data_ptr<float>();
-    
-    // Define CUDA kernel execution parameters
+    input = input.to(torch::kCUDA);  // Move tensor to GPU
+
+    float* data = input.data_ptr<float>();
     int size = input.numel();
     int threadsPerBlock = 256;
     int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
 
-    // Launch the CUDA kernel
-    squareKernel<<<blocksPerGrid, threadsPerBlock>>>(d_data, size);
+    // Launch CUDA kernel
+    squareKernel<<<blocksPerGrid, threadsPerBlock>>>(data, size);
+    cudaDeviceSynchronize();  // Ensure execution completes
 
-    // Ensure kernel execution is completed
-    cudaDeviceSynchronize();
-
-    return input;  // Return the modified tensor
+    return input;
 }
 
-// Binding C++ function to Python
+// Bind to Python
 PYBIND11_MODULE(gpu_compute, m) {
     m.def("square_tensor", &squareTensor, "Square a tensor using CUDA");
 }
