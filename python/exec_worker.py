@@ -36,12 +36,12 @@ async def execute_project(project_zip: bytes = Body(...)):
     try:
         # Create a temporary directory for the project
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Extract the project files
-            with zipfile.ZipFile(project_zip, 'r') as zip_ref:
+            # store the zip file in the temp directory
+            with open(os.path.join(temp_dir, "project.zip"), "wb") as f:
+                f.write(project_zip)
+            # unzip the project.zip file
+            with zipfile.ZipFile(os.path.join(temp_dir, "project.zip"), 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
-
-            # Get the project name from the path
-            project_name = os.path.basename(project_zip)
             # get main.yaml file
             main_yaml = os.path.join(temp_dir, "main.yaml")
             if not os.path.exists(main_yaml):
