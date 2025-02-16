@@ -65,7 +65,7 @@ async def distribute_matmul(request: MatMulRequest):
         raise HTTPException(status_code=500, detail="No results from GPU workers")
     # Concatenate results
     final_result = np.vstack(results).tolist()
-    return {"result": final_result}
+    return {"result": final_result, "device_id": request.device_id, "gpu": response.json().get("gpu", "Unknown GPU")}
 
 
 @app.get("/nvidia-smi")

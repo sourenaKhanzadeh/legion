@@ -45,7 +45,7 @@ async def matrix_multiplication(request: MatMulRequest):
         B_tensor = torch.tensor(request.B, dtype=torch.float32)
 
         # Perform multiplication on the selected GPU
-        result = mat_mult.matrixMultiply(A_tensor, B_tensor, request.device_id)
+        result = mat_mult.matrix_multiply(A_tensor, B_tensor, request.device_id)
 
         return {"gpu": HOSTNAME, "device": request.device_id, "result": result.cpu().tolist()}
 
