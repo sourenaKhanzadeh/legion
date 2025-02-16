@@ -21,7 +21,6 @@ class ComputeRequest(BaseModel):
 class MatMulRequest(BaseModel):
     A: list
     B: list
-    device_id: int
 
 
 @app.post("/compute")
@@ -55,7 +54,7 @@ async def distribute_matmul(request: MatMulRequest):
                 "A": sub_matrix.tolist(),
                 "B": B.tolist()
             }
-            tasks.append(client.post(GPU_WORKERS[i], json=payload))
+            tasks.append(client.post(GPU_WORKERS[i].replace("compute", "matmul"), json=payload))
 
         responses = await asyncio.gather(*tasks, return_exceptions=True)
 

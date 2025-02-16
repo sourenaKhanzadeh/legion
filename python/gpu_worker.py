@@ -43,6 +43,7 @@ async def matrix_multiplication(request: MatMulRequest):
         A_tensor = torch.tensor(request.A, dtype=torch.float32)
         B_tensor = torch.tensor(request.B, dtype=torch.float32)
 
+        print("GPU:", torch.cuda.current_device(), "is computing matmul")
         # Perform multiplication on the selected GPU
         result = mat_mult.matrix_multiply(A_tensor, B_tensor)
 
