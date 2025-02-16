@@ -4,7 +4,7 @@ import tempfile
 import os
 import sys
 import zipfile
-
+import yaml
 router = APIRouter()
 
 @router.post("/execute_script")
@@ -42,9 +42,20 @@ async def execute_project(project_zip: bytes = Body(...)):
 
             # Get the project name from the path
             project_name = os.path.basename(project_zip)
-
+            # get main.yaml file
+            main_yaml = os.path.join(temp_dir, "main.yaml")
+            if not os.path.exists(main_yaml):
+                return {"output": "", "error": "main.yaml not found"}
+            
+            # get the command from the main.yaml file
+            with open(main_yaml, 'r') as f:
+                main_yaml_content = yaml.safe_load(f)
+            main_root = main_yaml_content.get("main", "")
+            if not main_root:
+                return {"output": "", "error": "main not found in main.yaml"}
+            
             # Execute the project
-            result = subprocess.run([sys.executable, os.path.join(temp_dir, project_name)], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, os.path.join(temp_dir, main_root)], capture_output=True, text=True)
 
             # Read the execution results
             output = result.stdout

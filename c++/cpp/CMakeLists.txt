@@ -11,6 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(MASTER_SOURCE master_sender.cpp)
 set(WORKER_SOURCE gpu_worker.cpp)
 
+
+include_directories("include")
+
 # Create Executable for Master (Sender)
 add_executable(master_sender ${MASTER_SOURCE})
 

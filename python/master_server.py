@@ -26,6 +26,9 @@ class ExecuteScriptRequest(BaseModel):
     script_path: str
 
 
+class ExecuteProjectRequest(BaseModel):
+    project_zip: bytes
+
 @app.post("/compute")
 async def distribute_compute(request: ComputeRequest):
     if not GPU_WORKERS:
@@ -80,7 +83,6 @@ async def distribute_matmul(request: MatMulRequest):
         raise HTTPException(status_code=500, detail="No valid results from GPU workers")
     
     final_result = np.vstack(results).tolist()
-
     # Return only the result, not the tasks
     return {"result": final_result}
 
@@ -88,6 +90,7 @@ async def distribute_matmul(request: MatMulRequest):
 async def get_nvidia_smi():
     if not GPU_WORKERS:
         raise HTTPException(status_code=503, detail="No available GPU workers")
+    
     gpus = []
     for worker in GPU_WORKERS:
         async with httpx.AsyncClient() as client:
@@ -131,4 +134,29 @@ async def execute_script(request: ExecuteScriptRequest):
     return results  # Return all results, not just one
 
 
+@app.post("/execute_project")
+async def execute_project(request: ExecuteProjectRequest):
+    project_zip = request.project_zip
+
+    tasks = []
+    async with httpx.AsyncClient() as client:
+        for worker in GPU_WORKERS:
+            worker_url = worker.replace("compute", "execute_project")
+            tasks.append(client.post(worker_url, content=project_zip, headers={"Content-Type": "application/octet-stream"}))
+
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+    results = []
+    for worker, response in zip(GPU_WORKERS, responses):
+        if isinstance(response, Exception):
+            results.append({"worker": worker, "error": str(response)})
+        else:
+            try:
+                res = response.json()
+                results.append({"worker": worker, "output": res.get("output", ""), "error": res.get("error", "")})
+            except Exception as e:
+                results.append({"worker": worker, "error": f"Failed to parse response: {str(e)}"})
+
+    return results  # Return all results, not just one
+    
 # Run with: uvicorn master_server:app --host 0.0.0.0 --port 8000

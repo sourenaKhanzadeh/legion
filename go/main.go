@@ -2,9 +2,13 @@ package main
 
 import (
 	"Legion-Go/actors"
+	"archive/zip"
+	"bytes"
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -32,12 +36,23 @@ func main() {
 	}
 	fmt.Println(matResult)
 
-	fmt.Println("EXEC!")
-	execResult, err := actors.Exec("../python/scripts/exec_test.py")
+	// fmt.Println("EXEC!")
+	// execResult, err := actors.Exec("../python/scripts/exec_test.py")
+	// if err != nil {
+	// 	log.Fatalf("Error: %v", err)
+	// }
+	// fmt.Println(execResult)
+
+	fmt.Println("EXEC PROJECT!")
+	projectZip, err := zipProject("../proj/Moin")
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
-	fmt.Println(execResult)
+	projectResult, err := actors.ExecProject(projectZip)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+	fmt.Println(projectResult)
 }
 
 // GenerateRandomMatrix creates an N x P matrix with random float values
@@ -50,4 +65,41 @@ func GenerateRandomMatrix(rows, cols int) [][]float32 {
 		}
 	}
 	return matrix
+}
+
+func zipProject(projectPath string) ([]byte, error) {
+	// Create a buffer to write the zip to
+	var buf bytes.Buffer
+	zipWriter := zip.NewWriter(&buf)
+	defer zipWriter.Close()
+
+	projectFiles, err := os.ReadDir(projectPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range projectFiles {
+		filePath := filepath.Join(projectPath, file.Name())
+		if file.IsDir() {
+			continue
+		}
+
+		zipEntry, err := zipWriter.Create(filePath)
+		if err != nil {
+			return nil, err
+		}
+
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = zipEntry.Write(content)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	zipWriter.Close()
+	return buf.Bytes(), nil
 }
