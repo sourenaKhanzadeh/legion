@@ -5,12 +5,12 @@ from pydantic import BaseModel
 import random
 import torch 
 import numpy as np
-
+import asyncio
 app = FastAPI()
 
 # List of available GPU workers (Modify with actual IPs)
 GPU_WORKERS = [
-    # "http://192.168.2.48:8000/compute",
+    "http://192.168.2.48:8000/compute",
     "http://192.168.2.59:8002/compute",
 ]
 
@@ -42,31 +42,44 @@ async def distribute_matmul(request: MatMulRequest):
     A = torch.tensor(request.A, dtype=torch.float32)
     B = torch.tensor(request.B, dtype=torch.float32)
 
-    # Split the matrix into chunks
     num_gpus = len(GPU_WORKERS)
     chunk_size = A.size(0) // num_gpus
+
+    # Split matrix A row-wise
     sub_matrices = torch.chunk(A, num_gpus, dim=0)
 
-    results = []
+    tasks = []
     async with httpx.AsyncClient() as client:
         for i, sub_matrix in enumerate(sub_matrices):
             payload = {
                 "A": sub_matrix.tolist(),
-                "B": B.tolist(),
-                "device_id": request.device_id  # Assign each chunk to a different GPU
+                "B": B.tolist()
             }
-            response = await client.post(GPU_WORKERS[i].replace("compute", "matmul"), json=payload)
-            res = response.json()
-            if res.get("result", False):
-                results.append(res["result"])
-            if res.get("error", False):
-                raise HTTPException(status_code=500, detail=res.get("error", "Unknown error"))
-    if not results:
-        raise HTTPException(status_code=500, detail="No results from GPU workers")
-    # Concatenate results
-    final_result = np.vstack(results).tolist()
-    return {"result": final_result, "device_id": request.device_id, "gpu": response.json().get("gpu", "Unknown GPU")}
+            tasks.append(client.post(GPU_WORKERS[i], json=payload))
 
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Collect results
+    results = []
+    for response in responses:
+        if isinstance(response, Exception):
+            raise HTTPException(status_code=500, detail=f"GPU Worker Error: {str(response)}")
+        try:
+            res = response.json()
+            if "result" in res:
+                results.append(res["result"])
+            elif "error" in res:
+                raise HTTPException(status_code=500, detail=res["error"])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to parse GPU response: {str(e)}")
+
+    # Concatenate results
+    if not results:
+        raise HTTPException(status_code=500, detail="No valid results from GPU workers")
+    
+    final_result = np.vstack(results).tolist()
+
+    return {"result": final_result}
 
 @app.get("/nvidia-smi")
 async def get_nvidia_smi():

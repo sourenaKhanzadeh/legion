@@ -3,30 +3,51 @@
 
 namespace py = pybind11;
 
-__global__ void matrixMulKernel(float* A, float* B, float* C, int N) {
+// CUDA Kernel for Matrix Multiplication (Supports Any MxN * NxK)
+__global__ void matrixMulKernel(const float* A, const float* B, float* C, int M, int N, int K) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (row < N && col < N) {
+    if (row < M && col < K) {
         float sum = 0.0;
         for (int k = 0; k < N; k++) {
-            sum += A[row * N + k] * B[k * N + col];
+            sum += A[row * N + k] * B[k * K + col];
         }
-        C[row * N + col] = sum;
+        C[row * K + col] = sum;
     }
 }
 
-torch::Tensor matrixMultiply(torch::Tensor A, torch::Tensor B, int N) {
-    A = A.to(torch::kCUDA);
-    B = B.to(torch::kCUDA);
-    torch::Tensor C = torch::zeros({N, N}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
+// CUDA Function for Matrix Multiplication
+torch::Tensor matrixMultiply(torch::Tensor A, torch::Tensor B) {
+    // Ensure A and B are contiguous & on GPU
+    A = A.contiguous().to(torch::kCUDA);
+    B = B.contiguous().to(torch::kCUDA);
 
+    // Get matrix dimensions
+    int M = A.size(0);  // Rows of A
+    int N = A.size(1);  // Columns of A / Rows of B
+    int K = B.size(1);  // Columns of B
+
+    // Output matrix C on CUDA
+    torch::Tensor C = torch::zeros({M, K}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
+
+    // CUDA block & grid configuration
     dim3 threadsPerBlock(16, 16);
-    dim3 numBlocks((N + threadsPerBlock.x - 1) / threadsPerBlock.x,
-                   (N + threadsPerBlock.y - 1) / threadsPerBlock.y);
+    dim3 numBlocks((K + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                   (M + threadsPerBlock.y - 1) / threadsPerBlock.y);
 
-    matrixMulKernel<<<numBlocks, threadsPerBlock>>>(A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), N);
-    cudaDeviceSynchronize();
+    // Launch CUDA Kernel
+    matrixMulKernel<<<numBlocks, threadsPerBlock>>>(A.data_ptr<float>(), B.data_ptr<float>(),
+                                                    C.data_ptr<float>(), M, N, K);
+
+    // Check for CUDA errors
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("CUDA Kernel Launch Error: ") + cudaGetErrorString(err));
+    }
+
+    // Synchronize CUDA with PyTorch
+    torch::cuda::synchronize();
 
     return C;
 }
