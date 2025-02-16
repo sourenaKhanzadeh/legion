@@ -1,9 +1,15 @@
 from setuptools import setup
 from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 import os
+import shutil
 
 # Define the path to the C++ CUDA files
 compute_reg_path = os.path.abspath("../c++/cuda")
+
+# Force delete old build directory (prevents permission issues)
+build_dir = os.path.abspath("./build")
+if os.path.exists(build_dir):
+    shutil.rmtree(build_dir)
 
 setup(
     name="gpu_compute",
