@@ -1,8 +1,6 @@
 package actors
 
 import (
-	"errors"
-
 	"github.com/go-resty/resty/v2"
 )
 
@@ -16,7 +14,7 @@ type ExecResponse struct {
 }
 
 type ProjectRequest struct {
-	ProjectZip []byte `json:"project_zip"`
+	ProjectZip string `json:"project_zip"`
 }
 
 type ProjectResponse struct {
@@ -52,7 +50,8 @@ func Exec(scriptPath string) ([]string, error) {
 	return outputs, nil
 }
 
-func ExecProject(projectZip []byte) ([]string, error) {
+// Sends ZIP file to the FastAPI GPU worker
+func ExecProject(projectZip string) ([]string, error) {
 	serverURL := "http://localhost:8001/execute_project"
 
 	requestData := ProjectRequest{
@@ -71,12 +70,10 @@ func ExecProject(projectZip []byte) ([]string, error) {
 		return nil, err
 	}
 
-	var outputs []string
-	for _, res := range response {
-		if res.Error != "" {
-			return nil, errors.New(res.Error)
-		}
-		outputs = append(outputs, res.Output)
+	outputs := make([]string, len(response))
+	for i, res := range response {
+		outputs[i] = res.Output
 	}
+
 	return outputs, nil
 }

@@ -1,11 +1,12 @@
 import json
-from fastapi import FastAPI, HTTPException, File
+from fastapi import FastAPI, HTTPException, File, UploadFile
 import httpx
 from pydantic import BaseModel
 import random
 import torch 
 import numpy as np
 import asyncio
+import os
 app = FastAPI()
 
 # List of available GPU workers (Modify with actual IPs)
@@ -25,9 +26,9 @@ class MatMulRequest(BaseModel):
 class ExecuteScriptRequest(BaseModel):
     script_path: str
 
-
 class ExecuteProjectRequest(BaseModel):
-    project_zip: bytes
+    project_zip: str
+
 
 @app.post("/compute")
 async def distribute_compute(request: ComputeRequest):
@@ -115,8 +116,10 @@ async def execute_script(request: ExecuteScriptRequest):
     tasks = []
     async with httpx.AsyncClient() as client:
         for worker in GPU_WORKERS:
-            worker_url = worker.replace("compute", "execute_script")
-            tasks.append(client.post(worker_url, content=script_bytes, headers={"Content-Type": "application/octet-stream"}))
+            worker_url = worker.replace("compute", "execute_project")
+            with open(script_path, "rb") as f:
+                files = {"zip_file": (script_path, f, "application/octet-stream")}
+            tasks.append(client.post(worker_url, files=files))
 
         responses = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -138,25 +141,34 @@ async def execute_script(request: ExecuteScriptRequest):
 async def execute_project(request: ExecuteProjectRequest):
     project_zip = request.project_zip
 
-    tasks = []
-    async with httpx.AsyncClient() as client:
-        for worker in GPU_WORKERS:
-            worker_url = worker.replace("compute", "execute_project")
-            tasks.append(client.post(worker_url, content=project_zip, headers={"Content-Type": "application/octet-stream"}))
+    try:
+        with open(project_zip, "rb") as f:
+            project_zip_bytes = f.read()
 
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        async with httpx.AsyncClient() as client:
+            responses = await asyncio.gather(
+                *[
+                    client.post(
+                        f"{worker.replace('compute', 'execute_project')}",
+                        content=project_zip_bytes,  # 🔥 Send raw bytes, NOT JSON!
+                        headers={"Content-Type": "application/octet-stream"},
+                    )
+                    for worker in GPU_WORKERS
+                ],
+                return_exceptions=True
+            )
 
-    results = []
-    for worker, response in zip(GPU_WORKERS, responses):
-        if isinstance(response, Exception):
-            results.append({"worker": worker, "error": str(response)})
-        else:
-            try:
+        results = []
+        for worker, response in zip(GPU_WORKERS, responses):
+            if isinstance(response, Exception):
+                results.append({"worker": worker, "error": str(response)})
+            else:
                 res = response.json()
                 results.append({"worker": worker, "output": res.get("output", ""), "error": res.get("error", "")})
-            except Exception as e:
-                results.append({"worker": worker, "error": f"Failed to parse response: {str(e)}"})
 
-    return results  # Return all results, not just one
-    
+        return results
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Run with: uvicorn master_server:app --host 0.0.0.0 --port 8000

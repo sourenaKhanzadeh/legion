@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"math/rand/v2"
 	"os"
@@ -48,7 +49,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
-	projectResult, err := actors.ExecProject(projectZip)
+
+	// Save zip file
+	err = os.WriteFile("project.zip", projectZip, 0644)
+	if err != nil {
+		log.Fatalf("Error saving zip: %v", err)
+	}
+
+	absPath, err := filepath.Abs("project.zip")
+	if err != nil {
+		log.Fatalf("Error getting absolute path: %v", err)
+	}
+	projectResult, err := actors.ExecProject(absPath)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
@@ -68,38 +80,54 @@ func GenerateRandomMatrix(rows, cols int) [][]float32 {
 }
 
 func zipProject(projectPath string) ([]byte, error) {
-	// Create a buffer to write the zip to
+	// Create a buffer to store the ZIP file
 	var buf bytes.Buffer
 	zipWriter := zip.NewWriter(&buf)
-	defer zipWriter.Close()
 
-	projectFiles, err := os.ReadDir(projectPath)
+	// Walk through all files & subdirectories
+	err := filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories, we only need files
+		if info.IsDir() {
+			return nil
+		}
+
+		// Open file
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		// Create a ZIP entry with relative path
+		relPath, err := filepath.Rel(projectPath, path) // ✅ Fix: Use relative path
+		if err != nil {
+			return err
+		}
+
+		zipEntry, err := zipWriter.Create(relPath)
+		if err != nil {
+			return err
+		}
+
+		// Copy file content into ZIP
+		_, err = io.Copy(zipEntry, file)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// Close ZIP writer
+	zipWriter.Close()
+
 	if err != nil {
 		return nil, err
 	}
 
-	for _, file := range projectFiles {
-		filePath := filepath.Join(projectPath, file.Name())
-		if file.IsDir() {
-			continue
-		}
-
-		zipEntry, err := zipWriter.Create(filePath)
-		if err != nil {
-			return nil, err
-		}
-
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = zipEntry.Write(content)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	zipWriter.Close()
 	return buf.Bytes(), nil
 }
