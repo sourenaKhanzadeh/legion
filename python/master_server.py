@@ -139,10 +139,9 @@ async def execute_script(request: ExecuteScriptRequest):
 
 @app.post("/execute_project")
 async def execute_project(request: ExecuteProjectRequest):
-    project_zip = request.project_zip
-
     try:
-        with open(project_zip, "rb") as f:
+        # Read the zip file as binary
+        with open(request.project_zip, "rb") as f:
             project_zip_bytes = f.read()
 
         async with httpx.AsyncClient() as client:
@@ -150,8 +149,7 @@ async def execute_project(request: ExecuteProjectRequest):
                 *[
                     client.post(
                         f"{worker.replace('compute', 'execute_project')}",
-                        content=project_zip_bytes,  # 🔥 Send raw bytes, NOT JSON!
-                        headers={"Content-Type": "application/octet-stream"},
+                        files={"project_zip": ("project.zip", project_zip_bytes, "application/zip")},
                     )
                     for worker in GPU_WORKERS
                 ],
@@ -170,5 +168,6 @@ async def execute_project(request: ExecuteProjectRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Run with: uvicorn master_server:app --host 0.0.0.0 --port 8000
